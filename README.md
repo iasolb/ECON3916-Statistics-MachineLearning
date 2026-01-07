@@ -1,2 +1,2 @@
-# ECON3916-Statistics-MachineLearning
+# ECON3916-Statistical-Machine-Learning
 -
