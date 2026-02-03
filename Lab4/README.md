@@ -223,7 +223,7 @@ The ability to detect and characterize anomalies is foundational for any data sc
 
 **Ian Solberg**  
 ECON3916 - Spring 2026  
-Babson College
+Northeastern University
 
 ---
 
