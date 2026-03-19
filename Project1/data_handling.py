@@ -113,6 +113,19 @@ class MrozHandler:
             self.working[col_name] = series.loc[self.working.index]
         print(f"Attached '{col_name}' to dataset")
 
+    def get_formula(self) -> str:
+        """
+        Generate a formula string for use in statsmodels based on current dependent, independents, and controls.
+        Returns: formula string
+        """
+        if self.dependent is None:
+            raise ValueError("Dependent variable not set")
+        all_vars = self.independents + self.controls
+        if not all_vars:
+            raise ValueError("No independent or control variables set")
+        formula = f"{self.dependent.name} ~ " + " + ".join(s.name for s in all_vars)
+        return formula
+
     def clear_caches(self) -> None:
         """Clear cached dependent, independent, and control variables."""
         self.dependent = None
