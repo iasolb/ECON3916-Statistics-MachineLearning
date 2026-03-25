@@ -50,7 +50,7 @@ The identification strategy follows Heckman's two-step procedure:
 | 1 | `Proposal/` | Research question, variable map, hypothesis, empirical strategy |
 | 2 | `phase2.ipynb` | Data audit, cleaning pipeline, distributional analysis, EDA |
 | 3 | `phase3.ipynb` | Baseline model, interaction terms, identification police meeting |
-| 4 | `Final Report/` | Full execution, diagnostics, robustness checks, 10-page narrative |
+| 4 | `Final Report/` | 10-page narrative, Code Appendix|
 
 ## Data
 
