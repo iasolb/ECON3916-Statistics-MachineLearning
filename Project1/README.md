@@ -20,7 +20,6 @@ Project1/
 ├── assets/                 # Figures and visualizations
 ├── data/                   # Mroz.csv dataset
 ├── data_handling.py        # MrozHandler class (data cleaning, variable construction, model API)
-├── data_summary.ipynb      # Summary statistics and Table 1 generation
 ├── phase2.ipynb            # Phase 2: Data audit, EDA, distribution analysis
 ├── phase3.ipynb            # Phase 3: Baseline Heckman model, interaction tests, ID strategy
 ├── phase4_checks.ipynb     # Phase 4: Robustness checks (naive OLS, outliers, city, exclusion restrictions)
