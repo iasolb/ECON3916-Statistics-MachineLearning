@@ -6,3 +6,4 @@ seaborn
 statsmodels
 scipy
 missingno
+category_encoders
