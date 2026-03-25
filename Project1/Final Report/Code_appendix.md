@@ -1,5 +1,3 @@
-TODO
-
 ## Main API
 
 ```
@@ -141,6 +139,8 @@ class MrozHandler:
 
 ## Full Run 
 
+### Load Data, Calculate IMR
+
 ```
 import pandas as pd
 import numpy as np
@@ -159,5 +159,137 @@ Mroz.add_independents("kidslt6", "nwifeinc", "educ", "agew", "motheduc", "fathed
 probit_result = sm.Probit(Mroz.get_y().astype(int), Mroz.get_X()).fit()
 print(probit_result.summary())
 
+```
+
+### Attach Inverse Mills Ratio to dataset (working subset)
+```
+from scipy.stats import norm
+fitted = probit_result.fittedvalues
+imr_values = norm.pdf(fitted) / norm.cdf(fitted)
+imr_series = pd.Series(imr_values, index=Mroz.full.index)
+
+Mroz.attach("IMR", imr_series, to_working=True)
+```
+
+### Stage 2 OLS with attached IMR
 
 ```
+def heckman_object(Mroz: MrozHandler) -> tuple[pd.Series, pd.DataFrame, MrozHandler]:
+    Mroz.clear_caches()
+    Mroz.set_dependent("lwage", full=False)
+    Mroz.add_independents("exper", "expersq", full=False)
+    Mroz.add_controls("educ", "kidslt6", "nwifeinc", "IMR", full=False)
+    y = Mroz.get_y().dropna() # Fix the log wage issue by dropping nans, which correspond to non-working individuals
+    X = Mroz.get_X().loc[y.index] # Ensure X and y are aligned after dropping nans
+    return y, X, Mroz
+
+y, X, _ = heckman_object(Mroz)
+ols_result_imr = sm.OLS(y, X).fit()
+print(ols_result_imr.summary())
+```
+
+### Baseline OLS without IMR
+
+```
+def baseline_object(Mroz: MrozHandler) -> tuple[pd.Series, pd.DataFrame, MrozHandler]:
+    Mroz.clear_caches()
+    Mroz.set_dependent("lwage", full=False)
+    Mroz.add_independents("exper", "expersq", full=False)
+    Mroz.add_controls("educ", "kidslt6", "nwifeinc", full=False)
+    y = Mroz.get_y().dropna()
+    X = Mroz.get_X().loc[y.index]
+    return y, X, Mroz
+    
+y, X, BaselineMroz = baseline_object(Mroz)
+ols_baseline = sm.OLS(y, X).fit()
+print(ols_baseline.summary())
+```
+
+### Calculate Peak Experience
+
+```
+def calculate_peak_experience(model_result):
+    """Calculates the peak of the quadratic experience curve: -b1 / (2 * b2)"""
+    b_exper = model_result.params["exper"]
+    b_expersq = model_result.params["expersq"]
+    
+    peak = -b_exper / (2 * b_expersq)
+    return peak
+
+# Calculate for both models
+peak_log = calculate_peak_experience(ols_result_imr)
+peak_lvl = calculate_peak_experience(ols_baseline)
+
+print(f"--- Experience Profile Analysis ---")
+print(f"Peak Experience (Log Wage Model): {peak_log:.2f} years")
+print(f"Peak Experience (Level Wage Model): {peak_lvl:.2f} years")
+```
+
+### Visualizing Diminishing Returns to Experience, and optimal experience
+
+```
+def plot_experience_curve(handler, model_result, dep_var_label, ax):
+    # 1. Create a range for Experience
+    max_exp = handler.working["exper"].max()
+    exper_range = np.linspace(0, max_exp, 100)
+    
+    # 2. Get the average values of all regressors used in the model
+    X_means = model_result.model.exog.mean(axis=0)
+    X_pred = pd.DataFrame([X_means] * 100, columns=model_result.params.index)
+    
+    # 3. Update only the experience columns
+    X_pred["exper"] = exper_range
+    X_pred["expersq"] = exper_range**2
+    
+    # 4. Predict
+    y_pred = model_result.predict(X_pred)
+    
+    # 5. Plot
+    observed = handler.working[dep_var_label].dropna()
+    ax.scatter(handler.working["exper"], observed, alpha=0.25, color="steelblue", s=15, label="Observed")
+    ax.plot(exper_range, y_pred, color="firebrick", linewidth=2.5, label="Predicted (at means)")
+    ax.set_xlabel("Years of Experience")
+    ax.legend()
+
+# ==== Execution Block ====
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+print("Plotting experience-earnings curves... \n")
+print("Panel 1: Log Wage (Heckman Corrected)\n")
+
+# Panel 1: Log Wage (Heckman Corrected)
+
+y_log, X_log, _ = heckman_object(Mroz)
+ols_log = sm.OLS(y_log, X_log).fit()
+
+plot_experience_curve(Mroz, ols_log, "lwage", axes[0])
+axes[0].set_ylabel("Log Hourly Earnings", fontsize=11)
+axes[0].set_title("Log Earnings Model (Selection Corrected)")
+
+# Panel 2: Levels Wage (Baseline)
+
+print("\nPanel 2: Levels Wage - No IMR (Baseline)\n")
+Mroz.set_dependent("hearnw", full=False)
+Mroz.add_independents("exper", "expersq", full=False)
+Mroz.add_controls("educ", "kidslt6", "nwifeinc", full=False)
+
+y_lvl = Mroz.get_y().dropna()   
+X_lvl = Mroz.get_X().loc[y_lvl.index]
+ols_levels = sm.OLS(y_lvl, X_lvl).fit()
+
+plot_experience_curve(Mroz, ols_levels, "hearnw", axes[1])
+axes[1].set_ylabel("Hourly Earnings ($)", fontsize=11)
+axes[1].set_title("Earnings Levels Model", fontsize=12)
+
+axes[0].set_title(f"Log Earnings (Peak: {peak_log:.1f} yrs)", fontsize=12) # Include peak experience in title
+axes[1].set_title(f"Earnings Levels (Peak: {peak_lvl:.1f} yrs)", fontsize=12) # Include peak experience in title
+
+fig.suptitle("Experience-Earnings Curves: Marginal Effects at the Mean", fontsize=14, y=1.02)
+plt.tight_layout()
+plt.show()
+```
+
+
+
+# ALL RESULTS IN `Final Report/FinalReport.pdf`
+
