@@ -8,3 +8,5 @@ scipy
 missingno
 category_encoders
 wbgapi
+fredapi
+dotenv
