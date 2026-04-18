@@ -10,3 +10,4 @@ category_encoders
 wbgapi
 fredapi
 dotenv
+huggingface_hub
